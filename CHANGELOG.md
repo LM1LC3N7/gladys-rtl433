@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-15
+
 ### Added
 
 - Reading rtl_433 from the user's MQTT broker (mqtt, mqtts, ws, wss; user name
@@ -34,4 +36,5 @@ the notes of the version's GitHub Release.
 - rtl_433's availability (online / offline) in the status.
 - "Test the connection" and "List the sensors heard" buttons.
 
-[Unreleased]: https://github.com/LM1LC3N7/gladys-rtl433/commits/main
+[Unreleased]: https://github.com/LM1LC3N7/gladys-rtl433/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/LM1LC3N7/gladys-rtl433/releases/tag/v0.1.1

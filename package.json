@@ -1,6 +1,6 @@
 {
   "name": "gladys-rtl433",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Gladys Assistant external integration for the 433/868 MHz radio sensors decoded by rtl_433 with an SDR dongle.",
   "type": "module",
