@@ -1,33 +1,69 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeConfig, DEFAULT_CONFIG } from '../src/config.js';
+import { DEFAULTS, normalizeConfig, normalizeTopic, parseServerUrl } from '../src/config.js';
+import { SENSOR_INTERVAL } from '../src/constants.js';
 
-test('normalizeConfig returns the defaults when called with no argument', () => {
-  assert.deepEqual(normalizeConfig(), DEFAULT_CONFIG);
+test('the address: a broker by default, rtl_433 itself over http', () => {
+  assert.deepEqual(parseServerUrl('192.168.1.10'), { kind: 'mqtt', url: 'mqtt://192.168.1.10' });
+  assert.deepEqual(parseServerUrl(' mqtts://broker.lan:8883 '), {
+    kind: 'mqtt',
+    url: 'mqtts://broker.lan:8883',
+  });
+  assert.deepEqual(parseServerUrl('ws://10.0.0.2:9001/mqtt'), {
+    kind: 'mqtt',
+    url: 'ws://10.0.0.2:9001/mqtt',
+  });
+  assert.deepEqual(parseServerUrl('http://192.168.1.20:8433'), {
+    kind: 'http',
+    url: 'http://192.168.1.20:8433/events',
+  });
+  assert.deepEqual(parseServerUrl('http://192.168.1.20:8433/stream'), {
+    kind: 'http',
+    url: 'http://192.168.1.20:8433/stream',
+  });
+  assert.deepEqual(parseServerUrl(''), { error: 'empty' });
+  assert.deepEqual(parseServerUrl('ftp://x'), { error: 'invalid' });
+  assert.deepEqual(parseServerUrl('mqtt://'), { error: 'invalid' });
+  assert.deepEqual(parseServerUrl('mqtt://u:p@host'), { error: 'credentials' });
 });
 
-test('normalizeConfig keeps user values over the defaults', () => {
-  const config = normalizeConfig({ latitude: 45.5, longitude: -73.6, unit: 'fahrenheit' });
-  assert.equal(config.latitude, 45.5);
-  assert.equal(config.longitude, -73.6);
-  assert.equal(config.unit, 'fahrenheit');
+test('the topic filter', () => {
+  assert.equal(normalizeTopic('rtl_433/+/events'), 'rtl_433/+/events');
+  assert.equal(normalizeTopic(' rtl_433/# '), 'rtl_433/#');
+  assert.equal(normalizeTopic('#'), '#');
+  for (const bad of ['', 'rtl_433/#/x', 'rtl_433/a+', 'rtl#', null]) {
+    assert.equal(normalizeTopic(bad), DEFAULTS.topic, String(bad));
+  }
 });
 
-test('normalizeConfig coerces numeric strings coming from a form', () => {
-  const config = normalizeConfig({ latitude: '48.8', longitude: '2.3', poll_frequency: '600' });
-  assert.equal(config.latitude, 48.8);
-  assert.equal(config.longitude, 2.3);
-  assert.equal(config.poll_frequency, 600);
-  assert.equal(typeof config.poll_frequency, 'number');
-});
-
-test('normalizeConfig falls back to the default for a missing numeric field', () => {
-  const config = normalizeConfig({ unit: 'celsius' });
-  assert.equal(config.poll_frequency, DEFAULT_CONFIG.poll_frequency);
-});
-
-test('GLADYS_PREFER_LOCAL defaults to true and only an explicit false disables it', () => {
-  assert.equal(normalizeConfig().GLADYS_PREFER_LOCAL, true);
-  assert.equal(normalizeConfig({ GLADYS_PREFER_LOCAL: true }).GLADYS_PREFER_LOCAL, true);
-  assert.equal(normalizeConfig({ GLADYS_PREFER_LOCAL: false }).GLADYS_PREFER_LOCAL, false);
+test('the configuration, normalized', () => {
+  assert.deepEqual(normalizeConfig(), {
+    kind: undefined,
+    url: undefined,
+    urlError: 'empty',
+    username: '',
+    password: '',
+    topic: 'rtl_433/#',
+    verifyCertificate: true,
+    includeTpms: false,
+    sensorInterval: SENSOR_INTERVAL.default,
+  });
+  const c = normalizeConfig({
+    server_url: '10.0.0.5',
+    username: ' me ',
+    password: ' s3cret ',
+    topic: null,
+    verify_certificate: false,
+    include_tpms: true,
+    sensor_interval: '99999',
+  });
+  assert.equal(c.url, 'mqtt://10.0.0.5');
+  assert.equal(c.username, 'me');
+  assert.equal(c.password, ' s3cret ', 'a password is never trimmed');
+  assert.equal(c.topic, 'rtl_433/#');
+  assert.equal(c.verifyCertificate, false);
+  assert.equal(c.includeTpms, true);
+  assert.equal(c.sensorInterval, SENSOR_INTERVAL.max);
+  assert.equal(normalizeConfig({ sensor_interval: 'abc' }).sensorInterval, 30);
+  assert.equal(normalizeConfig({ sensor_interval: -5 }).sensorInterval, 0);
 });

@@ -1,177 +1,206 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "rtl_433 (433/868 MHz)",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Weather stations, probes, meters and remotes on 433/868 MHz, via rtl_433 and an SDR dongle.",
+    "fr": "Stations météo, sondes, compteurs et télécommandes 433/868 MHz, via rtl_433 et une clé SDR."
   },
-  "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "version": "0.1.0",
+  "docker_image": "ghcr.io/lm1lc3n7/gladys-rtl433:0.1.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/LM1LC3N7/gladys-rtl433/main/cover.png",
+  "categories": ["environment", "energy", "protocols"],
+  "transports": ["local"],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Your 433/868 MHz sensors, through rtl_433",
+        "fr": "Vos capteurs 433/868 MHz, grâce à rtl_433"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "rtl_433 turns a 25 € SDR dongle (RTL2832U) into a receiver for hundreds of radio devices: weather stations, thermometers, soil probes, energy meters (OWL), door contacts, motion detectors, remotes, tyre sensors... The dongle is not plugged into Gladys: rtl_433 runs next to it (the Docker command is in the guide) and publishes what it hears to your MQTT broker. This integration reads it and offers every sensor heard in the Discovery tab. The neighbours' sensors are heard too: add only yours, the \"List the sensors heard\" button shows their values and signal. Type the address of the broker as seen from the Gladys machine: its LAN IP address, not localhost. Not affiliated with the rtl_433 project.",
+        "fr": "rtl_433 transforme une clé SDR à 25 € (RTL2832U) en récepteur pour des centaines d'appareils radio : stations météo, thermomètres, sondes de sol, compteurs d'énergie (OWL), contacts de porte, détecteurs de mouvement, télécommandes, capteurs de pneus... La clé ne se branche pas sur Gladys : rtl_433 tourne à côté (la commande Docker est dans le guide) et publie ce qu'il entend sur votre broker MQTT. Cette intégration le lit et propose chaque capteur entendu dans l'onglet Découverte. Les capteurs des voisins sont entendus aussi : n'ajoutez que les vôtres, le bouton « Lister les capteurs entendus » montre leurs valeurs et leur signal. Saisissez l'adresse du broker vue depuis la machine Gladys : son adresse IP sur le réseau local, pas localhost. Sans lien avec le projet rtl_433."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/LM1LC3N7/gladys-rtl433/blob/main/docs/fr.md",
+          "label": { "en": "Guide (French)", "fr": "Guide (français)" }
+        },
+        {
+          "url": "https://github.com/LM1LC3N7/gladys-rtl433/blob/main/docs/en.md",
+          "label": { "en": "Guide (English)", "fr": "Guide (anglais)" }
+        },
+        {
+          "url": "https://github.com/merbanan/rtl_433",
+          "label": {
+            "en": "rtl_433 and its supported devices",
+            "fr": "rtl_433 et ses appareils compatibles"
+          }
+        },
+        {
+          "url": "https://hub.docker.com/r/hertzg/rtl_433",
+          "label": { "en": "The rtl_433 Docker image", "fr": "L'image Docker de rtl_433" }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "server_url",
+      "type": "string",
+      "label": {
+        "en": "Address of the MQTT broker (or of rtl_433)",
+        "fr": "Adresse du broker MQTT (ou de rtl_433)"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "description": {
+        "en": "mqtt://host:1883 or mqtts://host:8883: the broker rtl_433 publishes to (-F mqtt://...). A bare IP address means mqtt:// on port 1883. Without a broker: rtl_433's own HTTP server, http://host:8433 (-F http:0.0.0.0:8433).",
+        "fr": "mqtt://hôte:1883 ou mqtts://hôte:8883 : le broker sur lequel rtl_433 publie (-F mqtt://...). Une adresse IP seule vaut mqtt:// sur le port 1883. Sans broker : le serveur HTTP de rtl_433 lui-même, http://hôte:8433 (-F http:0.0.0.0:8433)."
+      },
+      "placeholder": { "en": "mqtt://192.168.1.10:1883", "fr": "mqtt://192.168.1.10:1883" },
+      "required": true
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+      "key": "username",
+      "type": "string",
+      "label": { "en": "User name", "fr": "Utilisateur" },
+      "placeholder": {
+        "en": "Leave empty for an anonymous broker",
+        "fr": "Laissez vide pour un broker anonyme"
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "required": false
     },
     {
-      "key": "unit",
-      "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
+      "key": "password",
+      "type": "secret",
+      "label": { "en": "Password", "fr": "Mot de passe" },
+      "required": false
+    },
+    {
+      "key": "topic",
+      "type": "string",
+      "label": { "en": "MQTT topic of rtl_433", "fr": "Topic MQTT de rtl_433" },
+      "description": {
+        "en": "Where rtl_433 publishes its events. rtl_433/# covers its default topics (rtl_433/<host>/events) and events=rtl_433[/model][/id]. Not used with the HTTP server.",
+        "fr": "Là où rtl_433 publie ses événements. rtl_433/# couvre ses topics par défaut (rtl_433/<hôte>/events) et events=rtl_433[/model][/id]. Inutile avec le serveur HTTP."
+      },
+      "placeholder": { "en": "rtl_433/#", "fr": "rtl_433/#" },
       "required": false,
-      "default": "celsius",
-      "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
-      ]
+      "default": "rtl_433/#"
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "key": "verify_certificate",
+      "type": "boolean",
+      "label": {
+        "en": "Verify the TLS certificate of the broker (mqtts, wss)",
+        "fr": "Vérifier le certificat TLS du broker (mqtts, wss)"
+      },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "Turn off only for a broker with a self-signed certificate on your local network.",
+        "fr": "À désactiver seulement pour un broker au certificat auto-signé sur votre réseau local."
       },
       "required": false,
-      "default": 300,
-      "min": 60,
+      "default": true
+    },
+    {
+      "key": "include_tpms",
+      "type": "boolean",
+      "label": {
+        "en": "Offer the tyre pressure sensors (TPMS)",
+        "fr": "Proposer les capteurs de pression des pneus (TPMS)"
+      },
+      "description": {
+        "en": "Every car driving by is heard: leave off, unless you want the tyres of your own car (they transmit while driving).",
+        "fr": "Chaque voiture qui passe est entendue : laissez désactivé, sauf pour suivre les pneus de votre voiture (ils émettent en roulant)."
+      },
+      "required": false,
+      "default": false
+    },
+    {
+      "key": "sensor_interval",
+      "type": "number",
+      "label": {
+        "en": "Minimum interval between two readings of a sensor (s)",
+        "fr": "Intervalle minimum entre deux mesures d'un capteur (s)"
+      },
+      "description": {
+        "en": "An energy meter transmits every 6 s: Gladys keeps its last reading at this pace. Contacts, motion, alarms and remotes are never delayed.",
+        "fr": "Un compteur d'énergie émet toutes les 6 s : Gladys garde sa dernière mesure à ce rythme. Contacts, mouvements, alarmes et télécommandes ne sont jamais retardés."
+      },
+      "required": false,
+      "default": 30,
+      "min": 0,
       "max": 3600
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
+      "key": "test_connection",
+      "label": { "en": "Test the connection", "fr": "Tester la connexion" },
+      "timeout_seconds": 45
     },
     {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
+      "key": "list_sensors",
+      "label": { "en": "List the sensors heard", "fr": "Lister les capteurs entendus" },
+      "timeout_seconds": 10
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "button_pressed",
+      "label": { "en": "433 MHz remote or button", "fr": "Télécommande ou bouton 433 MHz" },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "A press on a radio remote, a button or a switch decoded by rtl_433 (one event per press, the repeats of the radio frame are merged).",
+        "fr": "Un appui sur une télécommande, un bouton ou un interrupteur radio décodé par rtl_433 (un événement par appui, les répétitions de la trame radio sont fusionnées)."
       },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
+          "label": { "en": "Remote", "fr": "Télécommande" }
         },
         {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
+          "key": "code",
+          "type": "string",
+          "label": {
+            "en": "Button or code (e.g. 1, 192)",
+            "fr": "Bouton ou code (ex. 1, 192)"
+          }
+        },
+        {
+          "key": "action",
+          "type": "select",
+          "label": { "en": "Action", "fr": "Action" },
           "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
+            { "value": "press", "label": { "en": "Press", "fr": "Appui" } },
+            { "value": "on", "label": { "en": "On", "fr": "Marche" } },
+            { "value": "off", "label": { "en": "Off", "fr": "Arrêt" } }
           ]
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "code",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": { "en": "Button or code", "fr": "Bouton ou code" }
+        },
+        {
+          "key": "action",
+          "type": "string",
+          "label": { "en": "Action (press, on, off)", "fr": "Action (press, on, off)" }
+        },
+        {
+          "key": "model",
+          "type": "string",
+          "label": { "en": "rtl_433 model", "fr": "Modèle rtl_433" }
+        },
+        {
+          "key": "payload",
+          "type": "string",
+          "label": { "en": "Received event (JSON)", "fr": "Événement reçu (JSON)" }
         }
       ]
-    }
-  ],
-  "scene_actions": [
-    {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
-      },
-      "timeout_seconds": 15,
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ],
-      "outputs": [
-        {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
-        }
-      ]
-    }
-  ],
-  "widgets": [
-    {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
-      },
-      "icon": "activity",
-      "action_timeout_seconds": 15
     }
   ]
 }

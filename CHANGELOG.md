@@ -12,44 +12,26 @@ the notes of the version's GitHub Release.
 
 ### Added
 
-- A working example of scene triggers, scene actions and dashboard widgets
-  (Gladys 5.1.0 or later).
-- `CHANGELOG.md`, rolled by the Release workflow.
-- A GitHub Release for every version, with its changelog section as notes: the
-  Gladys Supervision page links each version to the repository's releases.
-- CI runs the tests on Node 22 and 24, and builds the Docker image.
-- Dependabot keeps the npm dependencies and the GitHub Actions up to date.
-- `SECURITY.md` (how to report a vulnerability) and `CLAUDE.md` (project rules
-  for contributors and coding assistants).
-- Manifest tests: `version` matches `package.json`, `docker_image` is tagged
-  with it, descriptions hold 10 to 100 characters, placeholders are
-  multi-language objects.
-- The latitude and longitude fields show an example value as placeholder.
+- Reading rtl_433 from the user's MQTT broker (mqtt, mqtts, ws, wss; user name
+  and password; TLS verification can be turned off for a self-signed broker),
+  on a configurable topic filter (`rtl_433/#` by default: rtl_433's default
+  topics and `events=rtl_433[/model][/id]`).
+- Without a broker: rtl_433's own HTTP server (`-F http`, the `/events`
+  stream).
+- One Discovery device per sensor heard (model + id + channel), gathering the
+  fields of all its messages; the sensors silent for 24 h leave the list.
+- Temperature (°F converted), numbered probes, humidity, battery, wind speed,
+  gust and direction, rain and rain rate, pressure, light, UV index, power,
+  energy index, current, voltage, soil moisture, opening, motion, water leak,
+  smoke, tamper, and tyre pressure (TPMS, as an option).
+- Remotes: one button feature per code, ON/OFF switches, the repeats of a
+  radio frame merged, and the "433 MHz remote or button" scene trigger.
+- Motion and smoke detectors set back to 0 after 60 s.
+- The last values heard sent when a device is added; readings throttled to a
+  configurable interval, all states within the Gladys rate limit.
+- The transport badge: unreachable while the link is down, or when a sensor
+  that measures periodically has been silent for an hour.
+- rtl_433's availability (online / offline) in the status.
+- "Test the connection" and "List the sensors heard" buttons.
 
-### Changed
-
-- Node.js 22 or later is required (Node 20 is end-of-life).
-- Integration SDK 0.15.0. The tests now run against the fake Gladys of the
-  SDK, which refuses the payloads Gladys refuses.
-- The refresh interval is one minute minimum, the fastest Gladys polls a
-  device. The plug's power is only sent when it changes, and every 30
-  minutes otherwise.
-
-### Fixed
-
-- Gladys refused the devices of the Discovery tab: the weather station and
-  the plug declared their poll frequency in seconds instead of one of the
-  values Gladys accepts, and were never polled. They now poll every minute,
-  and the readings follow the refresh interval of the configuration.
-
-- The release commit no longer fails `npm run format:check`: the Release
-  workflow updates the manifest `version` and `docker_image` in place instead
-  of re-printing the whole file with `jq`.
-- The integration can write to `/data`: the image creates the directory owned
-  by the `node` user, a new Docker volume was owned by root.
-- A sub-container running the integration's own image follows it to the new
-  tag at each release, as well as in the manifest of the build summary: it kept
-  the previous tag, which may not exist on the registry. Sub-containers on a
-  third-party image (a broker, a database...) keep theirs.
-
-[Unreleased]: https://github.com/GladysAssistant/integration-template-js/commits/main
+[Unreleased]: https://github.com/LM1LC3N7/gladys-rtl433/commits/main

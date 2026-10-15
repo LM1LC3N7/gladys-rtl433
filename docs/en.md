@@ -1,61 +1,218 @@
-# Demo Devices Template
+# rtl_433 (433/868 MHz)
 
-This is the user documentation of the integration. Gladys re-hosts this file
-and shows a permanent **Documentation** link to it in the Configuration screen
-(in the user's language, with English as the fallback) — it is when
-configuring that the user needs it most. Keep the short onboarding hints in
-the `section` blocks of the manifest `config_schema`; put the long
-step-by-step (screenshots, troubleshooting…) here.
+[rtl_433](https://github.com/merbanan/rtl_433) turns a **25 € SDR dongle**
+(RTL2832U chip) into a radio receiver for hundreds of 433 MHz and 868 MHz
+devices: weather stations, thermometers and hygrometers, soil probes, energy
+meters (OWL), door contacts, motion and smoke detectors, remotes, tyre
+pressure sensors… This integration reads what rtl_433 hears and offers every
+sensor in the **Discovery** tab of Gladys. Not affiliated with the rtl_433
+project.
+
+> **Development version (0.1).** Tested against the real rtl_433 (25.12)
+> replaying radio recordings of its test suite, with a real Mosquitto broker,
+> but not with a real SDR dongle yet. Feedback is welcome on the GitHub
+> repository.
+
+## How it works
+
+The dongle is **not plugged into Gladys**: integrations get no USB access.
+rtl_433 runs **next to the dongle**, in its own Docker container (on the
+Gladys machine, or on a Raspberry Pi better placed in the house), and publishes
+what it hears to your **MQTT broker**. The integration reads that broker.
+
+```
+radio sensors ))) SDR dongle -> rtl_433 -> MQTT broker -> integration -> Gladys
+```
+
+Without a broker, the integration can also read rtl_433's own HTTP server (see
+below).
 
 ## What you get
 
-Six demo devices show up after installation: a weather station (real data
-from Open-Meteo), a switch, a dimmable light, a smart plug with power
-metering, a motion sensor and a camera.
+| rtl_433 field                                    | In Gladys                                                          |
+| ------------------------------------------------ | ------------------------------------------------------------------ |
+| `temperature_C`, `temperature_F`                 | temperature (converted to °C)                                      |
+| `temperature_1_C`, `temperature_2_C`…            | one temperature per probe (meat thermometers, pool…)               |
+| `humidity`                                       | humidity (%)                                                       |
+| `battery_ok`                                     | battery (%): 100 % = OK, 0 % = low for the sensors that say OK/LOW |
+| `wind_avg_*`, `wind_max_*`, `wind_dir_deg`       | average wind and gusts (km/h), direction (°)                       |
+| `rain_mm`, `rain_in`, `rain_rate_*`              | cumulated rain (mm) and rate (mm/h)                                |
+| `pressure_hPa`                                   | atmospheric pressure (hPa)                                         |
+| `light_lux`, `uvi`                               | light (lux), UV index                                              |
+| `power_W`, `energy_kWh`, `current`               | power (W), energy index (kWh, OWL CM180/CM160), current            |
+| `moisture`                                       | soil moisture (%)                                                  |
+| `state` open/closed, `contact_open`, `opened`    | opening (door, window)                                             |
+| `motion`                                         | motion                                                             |
+| `detect_wet`, `water`                            | water leak                                                         |
+| `tamper`                                         | tamper (case opened)                                               |
+| smoke detectors (Smoke-GS558…)                   | smoke                                                              |
+| `button`, `cmd`, `code`, `state` ON/OFF + `unit` | one button per key, and the scene trigger                          |
+| `pressure_kPa`, `pressure_PSI` of a TPMS sensor  | tyre pressure (bar), as an option                                  |
 
-## Configuration
+One sensor = one model + one id (+ one channel). A station sending several
+kinds of messages (wind, then rain) is one device, gathering all it measures.
 
-1. Open the **Configuration** tab of the integration.
-2. Set the **latitude** and **longitude** the demo weather station should
-   observe (they default to Paris), and pick your temperature unit.
-   The **refresh interval** sets how often the weather station and the
-   plug's power are read: every 5 minutes by default, every minute at most.
-3. Save: the devices appear in the **Discovery** tab, ready to be added.
+## 1. The hardware
 
-The **Prefer the local connection** toggle drives the demo plug: it reports
-the channel it actually uses as a badge (local or cloud), with an orange dot
-when it runs degraded (local refused, cloud fallback).
+- An **RTL-SDR** dongle (RTL2832U + R820T2/R860), for example RTL-SDR Blog V3
+  or V4, Nooelec NESDR: about 25 €. The supplied antenna is often enough; a
+  433 MHz antenna (17 cm) placed high reaches further.
+- On Linux, keep the DVB-T driver from grabbing the dongle, then plug it again:
 
-## Actions
+```bash
+echo 'blacklist dvb_usb_rtl28xxu' | sudo tee /etc/modprobe.d/blacklist-rtl.conf
+```
 
-- **Test the weather provider** — performs a live request to Open-Meteo and
-  shows the current temperature and humidity under the button.
-- **Identify a device** — pick one of your devices in the list and it will
-  signal itself (the demo light "blinks" in the logs).
+## 2. Run rtl_433
+
+With the [hertzg/rtl_433](https://hub.docker.com/r/hertzg/rtl_433) Docker
+image (amd64, arm64, armv7: PC, NAS, Raspberry Pi), on the machine the dongle
+is plugged into. Replace the broker address, user and password:
+
+```bash
+docker run -d --name rtl_433 --restart unless-stopped \
+  --device /dev/bus/usb \
+  hertzg/rtl_433:latest \
+  -M level \
+  -F "mqtt://192.168.1.10:1883,user=USER,pass=PASSWORD,retain=0,events=rtl_433[/model][/id]"
+```
+
+Or with Docker Compose:
+
+```yaml
+services:
+  rtl_433:
+    image: hertzg/rtl_433:latest
+    container_name: rtl_433
+    restart: unless-stopped
+    devices:
+      - /dev/bus/usb
+    command:
+      - -M
+      - level
+      - -F
+      - mqtt://192.168.1.10:1883,user=USER,pass=PASSWORD,retain=0,events=rtl_433[/model][/id]
+```
+
+- The broker can be the one of the Gladys MQTT integration (port 1883, the user
+  and password of its configuration) or your own (Mosquitto…). Without a user,
+  remove `user=…,pass=…`.
+- `-M level` adds the signal strength of each message: it helps to recognize
+  your sensors (see below).
+- **868 MHz** (some Bresser and Fine Offset stations, European sensors): add
+  `-f 868.3M -s 1024k`. To listen to both bands, the simplest is one dongle per
+  band (two containers, each with `-d :<serial number>`); one dongle can
+  alternate with `-f 433.92M -f 868.3M -H 60`, missing the messages sent while
+  it listens to the other band.
+- Check that rtl_433 hears something: `docker logs -f rtl_433`.
+
+## 3. Configure the integration
+
+1. **Address of the MQTT broker**: as seen from the Gladys machine, its LAN IP
+   address, not `localhost` (the integration runs in its own container).
+   Examples: `mqtt://192.168.1.10:1883`, `mqtts://broker.lan:8883`.
+2. The **user name** and **password** of the broker, if it asks for them.
+3. **MQTT topic of rtl_433**: keep `rtl_433/#`, which covers the command above
+   as well as rtl_433's default topics (`rtl_433/<host>/events`).
+4. Click **Test the connection**: the integration waits for the first message
+   of rtl_433 (up to 20 s) and names the sensor heard.
+
+## 4. Add YOUR sensors
+
+Open the **Discovery** tab: every sensor heard shows up, named after its model,
+id and channel (`Nexus-TH 201 ch3`). The list grows over the minutes (sensors
+transmit every 30 to 60 s; a remote, when pressed).
+
+**The neighbours' sensors are heard too.** To recognize yours, click **List
+the sensors heard** in the configuration: the sensors heard last are shown with
+their values, their number of messages and their signal strength. The
+strongest signal (dB closest to 0) is usually the nearest sensor. Tip: warm a
+probe in your hand, or press the remote, then list again.
+
+Only add your sensors: the others cost nothing (nothing is sent to Gladys for a
+device not added) and leave the list after 24 h of silence.
+
+**Tyre pressure sensors (TPMS)**: every car driving by is heard, so they are
+left out by default. Turn the option on to follow the tyres of your car (they
+transmit while driving, for example when coming back to the garage).
+
+**Battery change**: many cheap sensors draw a new id at every battery change.
+The sensor then shows up as a new device in Discovery: add it and delete the
+old one.
 
 ## Scenes
 
-The integration adds its own cards to the scene editor (Gladys 5.1 or
-later), under the **Integrations** category:
+- **Remotes** get one button per key ("Button 1", "Button 192"…), usable in the
+  "Device state change" trigger: press (click), or on/off for the ON/OFF
+  remotes (Nexa, KlikAanKlikUit, Waveman…). Every press is sent, the same one
+  twice in a row too; the repeats of the radio frame of one press (1.5 s) count
+  once.
+- The **433 MHz remote or button** trigger receives every press of an added
+  remote, filtered by remote, code (`1`, `192`…) and action (press, on, off),
+  with the model and the received message as variables.
+- **Motion** and **smoke** detectors only say "detected": they go back to 0 by
+  themselves 60 s after their last message.
+- Door contacts send open **and** closed: their state follows the door.
 
-- **Motion detected** (trigger) — starts the scene when a demo motion sensor
-  sees something move. Optionally pick the sensor and what moved (person,
-  animal); left empty, any detection matches. The following actions can
-  read what moved with `{{triggerEvent.data.target}}`.
-- **Identify a device** (action) — makes the chosen device signal itself.
-  It returns whether the device could signal itself, so the following
-  actions can depend on it.
+## Options
 
-## Dashboard
+| Option                       | Default     | Role                                                                      |
+| ---------------------------- | ----------- | ------------------------------------------------------------------------- |
+| MQTT topic of rtl_433        | `rtl_433/#` | to change only if rtl_433 publishes elsewhere                             |
+| Verify the TLS certificate   | yes         | turn off for a broker with a self-signed certificate on your network      |
+| Offer the TPMS sensors       | no          | see above                                                                 |
+| Minimum interval of a sensor | 30 s        | a meter transmitting every 6 s is recorded at this pace only (last value) |
 
-Add the **Demo status** widget to a dashboard: it shows the live
-temperature of the weather station and the power of the office plug, the
-connection the plug currently uses (orange when degraded) and the observed
-location. Its **Identify the light** button makes the demo light signal
-itself.
+Openings, motion, alarms and remotes are never delayed. Gladys accepts 300
+states per minute per integration: the integration only sends the values that
+change, and spreads the rest.
+
+## Without an MQTT broker: rtl_433's HTTP server
+
+rtl_433 can serve its messages over HTTP itself. Run it with:
+
+```bash
+docker run -d --name rtl_433 --restart unless-stopped \
+  --device /dev/bus/usb -p 8433:8433 \
+  hertzg/rtl_433:latest -M level -F http:0.0.0.0:8433
+```
+
+and type `http://<IP address of that machine>:8433` as the address in the
+configuration. The user, password and topic fields are not used.
+
+## Under the hood
+
+- The messages read are the JSON objects with a `model` (rtl_433's `events`
+  format); the `devices` topics (one value per topic) and `states` are ignored.
+  rtl_433's `availability` shows in the status of the integration: a stopped
+  rtl_433 (its `offline` last will) is reported, as long as no other message
+  arrives.
+- A device is identified by `model:id<id>:ch<channel>`, forever. Its features
+  are the ones its messages carried.
+- The Discovery list is published 2 s after a new sensor, at most every 30 s;
+  at most 500 sensors are kept in memory.
+- The badge of an added device turns "unreachable" when the broker is down, or
+  when a sensor that measures regularly (temperature, wind, energy…) has sent
+  nothing for an hour: flat batteries, out of range. Remotes and contacts,
+  which only transmit when used, stay "local".
+- Implausible values (a humidity of 255 %, -3276 °C…) are ignored.
 
 ## Troubleshooting
 
-The integration logs everything it does: check the integration logs from the
-Gladys UI (or `docker logs` on the host) with `LOG_LEVEL=debug` for the full
-detail.
+- **"No rtl_433 event"** on the test: look at `docker logs rtl_433`.
+  `usb_claim_interface error -6`: the DVB-T driver holds the dongle (see the
+  hardware). Nothing heard: check the frequency (`-f`) and the antenna.
+- **"The MQTT broker is unreachable"**: check the IP address and the port, and
+  that the broker accepts connections from the LAN (`listener 1883` in
+  Mosquitto 2).
+- **"refused the connection"**: wrong user name or password, or an ACL
+  forbidding to read `rtl_433/#`.
+- **A sensor is heard but does not show up**: "List the sensors heard" says
+  "nothing supported yet" when none of its fields is recognized yet. Open an
+  issue with its JSON message (`docker logs rtl_433`).
+
+## Privacy
+
+Everything stays on your network: the integration only talks to your MQTT
+broker (or to rtl_433). The password is stored as a secret by Gladys and never
+shows in the logs.
